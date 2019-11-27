@@ -1,4 +1,6 @@
 module Analysis : sig
+  type ocamlformat_version = Version of string | Vendored
+
   (** A project is a directory with a dune-project file in it *)
   type project = {
     project_path : string;
@@ -9,7 +11,7 @@ module Analysis : sig
 
   val opam_files : t -> string list
   val is_duniverse : t -> bool
-  val ocamlformat_version : t -> string option
+  val ocamlformat_version : t -> ocamlformat_version option
   val projects : t -> project list
 end
 

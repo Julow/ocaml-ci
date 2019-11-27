@@ -26,6 +26,9 @@ module Examine = struct
   end
 
   module Value = struct
+    type ocamlformat_version = Version of string | Vendored
+    [@@deriving yojson]
+
     type project = {
       project_path : string;
       project_name : string option;
@@ -35,7 +38,7 @@ module Examine = struct
     type t = {
       is_duniverse : bool;
       opam_files : string list;
-      ocamlformat_version : string option;
+      ocamlformat_version : ocamlformat_version option;
       projects : project list;
     }
     [@@deriving yojson]
@@ -100,11 +103,16 @@ module Examine = struct
           Ok (Some v)
       | _ -> Error (`Msg "Unable to parse .ocamlformat file")
 
-  let get_ocamlformat_version job root =
-    Fpath.(to_string (root / ".ocamlformat")) |> ocamlformat_version_from_file job
-    >|= function
-    | Ok result -> result
-    | Error (`Msg e) -> failwith e
+  let get_ocamlformat_version ~projects job root =
+    let proj_is_ocamlformat p = p.Value.project_name = Some "ocamlformat" in
+    if List.exists proj_is_ocamlformat projects then
+      Lwt.return (Some Value.Vendored)
+    else
+      Fpath.(to_string (root / ".ocamlformat")) |> ocamlformat_version_from_file job
+      >|= function
+      | Ok (Some v) -> Some (Value.Version v)
+      | Ok None -> None
+      | Error (`Msg e) -> failwith e
 
   let is_toplevel path = not (String.contains path '/')
 
@@ -150,7 +158,7 @@ module Examine = struct
     Current_git.with_checkout ~job src @@ fun tmpdir ->
     let is_duniverse = is_directory (Filename.concat (Fpath.to_string tmpdir) "duniverse") in
     get_projects job tmpdir >>!= fun projects ->
-    get_ocamlformat_version job tmpdir >>= fun ocamlformat_version ->
+    get_ocamlformat_version ~projects job tmpdir >>= fun ocamlformat_version ->
     let cmd = "", [| "find"; "."; "-name"; "*.opam" |] in
     Current.Process.check_output ~cwd:tmpdir ~cancellable:true ~job cmd >>!= fun output ->
     let opam_files =
