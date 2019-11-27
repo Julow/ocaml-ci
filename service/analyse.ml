@@ -71,11 +71,10 @@ module Examine = struct
       | Some g -> Some (Re.Group.get g 1)
       | None -> None
 
-  let ocamlformat_version_from_file job path =
+  let ocamlformat_version_from_file path =
     let ( let+ ) = Lwt.Infix.( >|= ) in
     if not (Sys.file_exists path) then
-      let () = Current.Job.log job "No .ocamlformat file found" in
-      Lwt.return (Ok None)
+      Lwt.return (Error (`Msg "No .ocamlformat file found"))
     else
       let+ versions = Lwt_io.with_file ~mode:Lwt_io.input path (fun channel ->
           Lwt_io.read_lines channel
@@ -84,18 +83,18 @@ module Examine = struct
         )
       in
       match versions with
-      | [ v ] ->
-          let () =
-            Current.Job.log job "Found OCamlformat version '%s' in dotfile" v
-          in
-          Ok (Some v)
+      | [ v ] -> Ok v
       | _ -> Error (`Msg "Unable to parse .ocamlformat file")
 
   let get_ocamlformat_version job root =
-    Fpath.(to_string (root / ".ocamlformat")) |> ocamlformat_version_from_file job
+    ocamlformat_version_from_file Fpath.(to_string (root / ".ocamlformat"))
     >|= function
-    | Ok result -> result
-    | Error (`Msg e) -> failwith e
+    | Ok v ->
+      Current.Job.log job "Found OCamlformat version '%s' in dotfile" v;
+      Some v
+    | Error (`Msg e) ->
+      Current.Job.log job "%s" e;
+      None
 
   let is_toplevel path = not (String.contains path '/')
 
