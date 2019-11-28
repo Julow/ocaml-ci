@@ -6,7 +6,7 @@ type ocamlformat_version = [
   | `Version of string
 ]
 
-let ocamlformat ~ocamlformat_version ~base ~src =
+let ocamlformat ~dune_version ~ocamlformat_version ~base ~src =
   let dockerfile =
     let open Dockerfile in
     let+ base = base
@@ -17,9 +17,9 @@ let ocamlformat ~ocamlformat_version ~base ~src =
       | `Version v ->
         run "opam depext ocamlformat=%s" v
         @@ run "opam install ocamlformat=%s" v
-    in
+    and+ dune_version = dune_version in
     from (Docker.Image.hash base)
-    @@ run "opam install dune" (* Not the dune version the project use *)
+    @@ run "opam install dune=%s" dune_version
     @@ install_ocamlformat
     @@ copy ~chown:"opam" ~src:["./"] ~dst:"./src" ()
     @@ workdir "src"

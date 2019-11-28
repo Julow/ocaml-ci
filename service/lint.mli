@@ -6,6 +6,7 @@ type ocamlformat_version = [
 ]
 
 val ocamlformat :
+  dune_version:string Current.t ->
   ocamlformat_version:ocamlformat_version Current.t ->
   base:Docker.Image.t Current.t ->
   src:Current_git.Commit.t Current.t ->
