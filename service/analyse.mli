@@ -14,6 +14,7 @@ module Analysis : sig
   val is_duniverse : t -> bool
   val ocamlformat_version : t -> ocamlformat_version option
   val projects : t -> project list
+  val root_project : t -> project
 end
 
 val examine : Current_git.Commit.t Current.t -> Analysis.t Current.t
