@@ -31,6 +31,7 @@ module Examine = struct
 
     type project = {
       project_path : string;
+      project_dune_version : string option;
       project_name : string option;
     }
     [@@deriving yojson]
@@ -121,11 +122,14 @@ module Examine = struct
     let rec find_name acc = function
       | Sexplib.Sexp.List [ Atom "name"; Atom name ] :: tl ->
         find_name { acc with project_name = Some name } tl
+      | List [ Atom "lang"; Atom "dune"; Atom v ] :: tl ->
+        find_name { acc with project_dune_version = Some v } tl
       | _ :: tl -> find_name acc tl
       | [] -> acc
     in
     let project = {
       project_path;
+      project_dune_version = None;
       project_name = None
     } in
     match Sexplib.Sexp.load_sexps file_path with

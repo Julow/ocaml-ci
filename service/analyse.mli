@@ -4,6 +4,7 @@ module Analysis : sig
   (** A project is a directory with a dune-project file in it *)
   type project = {
     project_path : string;
+    project_dune_version : string option; (** The (lang dune ..) field *)
     project_name : string option; (** The (name ..) field *)
   }
 
