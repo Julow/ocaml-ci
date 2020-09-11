@@ -17,10 +17,19 @@ let group_opam_files =
   ListLabels.fold_left ~init:[] ~f:(fun acc x ->
       let item = Fpath.v x in
       let dir = Fpath.parent item in
-      let pkg = Filename.basename x |> Filename.chop_extension |> maybe_add_dev ~dir in
+      let basename = Filename.basename x in
+      let pkg = basename |> Filename.chop_extension |> maybe_add_dev ~dir in
+      let dst, pkg =
+        if Fpath.is_current_dir dir then
+          let dst = Fpath.add_seg dir ("dev-" ^ basename) in
+          Fpath.to_string dst, "dev-" ^ pkg
+        else
+          x, pkg
+      in
+      let copy = x, dst in
       match acc with
-      | (prev_dir, prev_items, pkgs) :: rest when Fpath.equal dir prev_dir -> (prev_dir, x :: prev_items, pkg :: pkgs) :: rest
-      | _ -> (dir, [x], [pkg]) :: acc
+      | (prev_dir, prev_items, pkgs) :: rest when Fpath.equal dir prev_dir -> (prev_dir, copy :: prev_items, pkg :: pkgs) :: rest
+      | _ -> (dir, [copy], [pkg]) :: acc
     )
 
 (* Generate Dockerfile instructions to copy all the files in [items] into the
@@ -29,8 +38,10 @@ let pin_opam_files groups =
   let open Dockerfile in
   let dirs = groups |> List.map (fun (dir, _, _) -> Printf.sprintf "%S" (Fpath.to_string dir)) |> String.concat " " in
   (run "mkdir -p %s" dirs @@@ (
-    groups |> List.map (fun (dir, files, _) ->
-        copy ~src:files ~dst:(Fpath.to_string dir) ()
+    groups |> List.map (fun (_, files, _) ->
+        crunch_list (files |> List.map (fun (src, dst) -> 
+            copy ~src:[src] ~dst ()
+          ))
       )
   )) @@ crunch_list (
     groups |> List.map (fun (dir, _, pkgs) ->
